@@ -1,0 +1,163 @@
+name: code-review-env
+version: "1.0.0"
+description: >
+  An OpenEnv-compliant AI training environment that simulates professional
+  Python code review. Agents learn to identify bugs, security vulnerabilities,
+  performance issues, style problems, and documentation gaps across three
+  progressively harder tasks.
+
+tags:
+  - openenv
+  - code-review
+  - python
+  - security
+  - software-engineering
+
+author: imaginephoenix / rawgenn.tech
+license: MIT
+
+environment:
+  class: CodeReviewEnv
+  module: env.environment
+  entrypoint: app.py
+  framework: fastapi
+
+observation_space:
+  type: object
+  description: >
+    What the agent sees each step. Contains the code snippet to review,
+    task instructions, all previously submitted comments, and optional
+    feedback from the last step.
+  fields:
+    task_id:
+      type: string
+      description: Identifier of the active task
+    step:
+      type: integer
+      description: Current step number (0-indexed)
+    snippet:
+      type: object
+      description: Python source code to review
+      fields:
+        file_name: { type: string }
+        source: { type: string, description: "Full Python source with line numbers" }
+        language: { type: string, const: "python" }
+    instructions:
+      type: string
+      description: Review instructions and scope for this task
+    previous_comments:
+      type: array
+      description: All review comments submitted in prior steps
+    feedback:
+      type: string
+      nullable: true
+      description: Environment feedback on the most recent action
+    done:
+      type: boolean
+
+action_space:
+  type: object
+  description: >
+    What the agent submits. A list of review comments (each with line,
+    category, severity, message, optional suggestion) plus an optional
+    overall summary and a submit flag.
+  fields:
+    comments:
+      type: array
+      items:
+        type: object
+        fields:
+          line: { type: integer, nullable: true, description: "1-indexed line number" }
+          category:
+            type: string
+            enum: [bug, security, performance, style, documentation]
+          severity:
+            type: string
+            enum: [low, medium, high, critical]
+          message: { type: string, minLength: 5, maxLength: 500 }
+          suggestion: { type: string, nullable: true, maxLength: 500 }
+    summary:
+      type: string
+      nullable: true
+      description: "Required for task_3_hard; optional otherwise"
+    submit:
+      type: boolean
+      description: "Set true to finalise the review and trigger the grader"
+
+reward:
+  type: float
+  range: [-1.0, 1.0]
+  description: >
+    Shaped reward with partial progress signals. Incremental positive reward
+    for each new valid comment added (proportional to issue severity). On
+    submit: final grader score mapped to [-0.2, 1.0]. Penalties for false
+    positives, missed criticals, and spamming low-quality comments.
+
+tasks:
+  - id: task_1_easy
+    title: "Bug Detection & Style Review"
+    difficulty: easy
+    categories: [bug, style]
+    max_steps: 5
+    passing_threshold: 0.55
+    description: >
+      Review calculator.py (31 lines) for division-by-zero bugs, off-by-one
+      errors, empty-collection crashes, and Python style anti-patterns.
+
+  - id: task_2_medium
+    title: "Security & Performance Audit"
+    difficulty: medium
+    categories: [security, performance]
+    max_steps: 7
+    passing_threshold: 0.60
+    description: >
+      Audit user_service.py (55 lines) for SQL injection, broken MD5 password
+      hashing, unbounded DB queries, and connection churn. Missed critical
+      security issues carry heavy penalties.
+
+  - id: task_3_hard
+    title: "Comprehensive Code Review"
+    difficulty: hard
+    categories: [bug, security, performance, style, documentation]
+    max_steps: 10
+    passing_threshold: 0.65
+    description: >
+      Full production-grade review of data_pipeline.py (49 lines). Covers
+      all five categories including shell injection, unsafe pickle
+      deserialization, ZeroDivisionError, and missing docstrings. An overall
+      written summary is required.
+
+api_endpoints:
+  - path: /reset
+    method: POST
+    description: Start or restart an episode
+  - path: /step
+    method: POST
+    description: Submit an action
+  - path: /state
+    method: GET
+    description: Get full serialisable state
+  - path: /tasks
+    method: GET
+    description: List all available tasks
+  - path: /health
+    method: GET
+    description: Health check
+
+baseline:
+  model: gpt-4o
+  script: baseline_agent.py
+  expected_scores:
+    task_1_easy: ~0.75
+    task_2_medium: ~0.65
+    task_3_hard: ~0.55
+
+docker:
+  base_image: python:3.11-slim
+  port: 7860
+  build: docker build -t code-review-env .
+  run: docker run -p 7860:7860 code-review-env
+
+huggingface:
+  space_sdk: docker
+  tags: [openenv, code-review, ai-agent, evaluation]
