@@ -47,28 +47,17 @@ class StepRequest(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 
+import os
+
 @app.get("/", response_class=HTMLResponse)
 def landing_page():
     """HTML landing page."""
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head><title>CodeReview OpenEnv</title></head>
-    <body style="font-family: system-ui, sans-serif; max-width: 720px; margin: 60px auto; padding: 0 20px;">
-        <h1>🔍 CodeReview OpenEnv</h1>
-        <p>An OpenEnv-compliant AI training environment for Python code review.</p>
-        <h2>Endpoints</h2>
-        <ul>
-            <li><code>GET  /health</code> — Health check</li>
-            <li><code>GET  /tasks</code> — List all task specs</li>
-            <li><code>POST /reset</code> — Start or restart an episode</li>
-            <li><code>POST /step</code> — Submit an action</li>
-            <li><code>GET  /state</code> — Get full serialisable state</li>
-            <li><code>GET  /docs</code> — Interactive Swagger UI</li>
-        </ul>
-    </body>
-    </html>
-    """
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
+    try:
+        with open(template_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<html><body><h1>Error: templates/index.html not found.</h1></body></html>"
 
 
 @app.get("/health")

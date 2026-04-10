@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeReview OpenEnv</title>
+    <!-- Google Fonts for modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- PrismJS for code syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-color: #0b1120;
+            --surface-color: rgba(30, 41, 59, 0.7);
+            --surface-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --primary-accent: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --secondary-accent: #8b5cf6;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism Classes */
+        .glass-panel {
+            background: var(--surface-color);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--surface-border);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        header {
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--surface-border);
+            background: rgba(11, 17, 32, 0.8);
+            backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        select, button, input, textarea {
+            font-family: 'Outfit', sans-serif;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        select {
+            padding: 10px 16px;
+            background: rgba(30, 41, 59, 0.8);
+            color: white;
+            border: 1px solid var(--surface-border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+
+        select:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
+            color: white;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--primary-glow);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--surface-border);
+        }
+        
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        main {
+            display: flex;
+            flex: 1;
+            padding: 20px;
+            gap: 20px;
+            height: calc(100vh - 100px);
+            box-sizing: border-box;
+        }
+
+        /* Loading Overlay */
+        #loader {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-accent);
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Left Pane - Code Snippet */
+        .pane-left {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: slideInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .pane-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--surface-border);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .code-container {
+            flex: 1;
+            overflow: auto;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0;
+            margin: 0;
+        }
+
+        pre[class*="language-"] {
+            margin: 0;
+            padding: 20px;
+            background: transparent !important;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Right Pane - Instructions & Actions */
+        .pane-right {
+            flex: 0.8;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .card {
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .instructions-text {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge.easy { color: var(--success); background: rgba(16, 185, 129, 0.1); }
+        .badge.medium { color: var(--warning); background: rgba(245, 158, 11, 0.1); }
+        .badge.hard { color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+
+        /* Comments Form */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row > div {
+            flex: 1;
+        }
+
+        input[type="number"], input[type="text"], textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--surface-border);
+            border-radius: 8px;
+            color: white;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
+        input:focus, textarea:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Staged Comments List */
+        .comments-list {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .comment-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-left: 3px solid var(--primary-accent);
+            padding: 12px 15px;
+            border-radius: 4px 8px 8px 4px;
+            font-size: 0.9rem;
+            animation: fadeIn 0.3s ease;
+            position: relative;
+        }
+
+        .comment-item .meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .comment-item .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            padding: 0;
+            color: var(--danger);
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: none;
+            opacity: 0.6;
+        }
+        
+        .comment-item .remove-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        textarea#summary {
+            height: 80px;
+            margin-top: 10px;
+        }
+
+        .submit-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            border-top: 1px solid var(--surface-border);
+            padding-top: 20px;
+        }
+
+        /* Modal */
+        #result-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
+            text-align: center;
+            animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--bg-color), rgba(30,41,59,1));
+            border: 4px solid var(--success);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.3);
+            position: relative;
+        }
+
+        .score-circle.failed {
+            border-color: var(--danger);
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+        }
+
+        .score-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            line-height: 1;
+        }
+
+        .score-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .reward-breakdown {
+            text-align: left;
+            margin-top: 25px;
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        /* Animations */
+        @keyframes slideInLeft {
+            from { transform: translateX(-30px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(30px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            70% { transform: scale(1.02); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* Highlight specific lines */
+        .line-highlight {
+            background: rgba(239, 68, 68, 0.2);
+            display: inline-block;
+            width: 100%;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <header>
+        <h1>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            CodeReview Hub
+        </h1>
+        <div class="controls">
+            <select id="task-select">
+                <option value="">Loading tasks...</option>
+            </select>
+            <button class="btn-primary" onclick="initSession()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l2-9 5 18 3-10 4 3"/></svg>
+                Load Environment
+            </button>
+        </div>
+    </header>
+
+    <main id="main-content" style="opacity: 0; transition: opacity 0.5s ease;">
+        
+        <div class="glass-panel pane-left">
+            <div class="pane-header">
+                <span id="file-name">filename.py</span>
+                <span class="badge" id="task-difficulty">EASY</span>
+            </div>
+            <div class="code-container">
+                <pre><code class="language-python" id="code-block"># Load a task to see code</code></pre>
+            </div>
+        </div>
+
+        <div class="pane-right">
+            
+            <div class="glass-panel card">
+                <h2 class="card-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    Review Instructions
+                </h2>
+                <div class="instructions-text" id="instructions">
+                    Select a task and click 'Load Environment' to begin your code review session.
+                </div>
+            </div>
+
+            <div class="glass-panel card" id="review-panel" style="display: none;">
+                <h2 class="card-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--secondary-accent)" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Add Comment
+                </h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Line # (optional)</label>
+                        <input type="number" id="c-line" placeholder="e.g. 15" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="c-category">
+                            <option value="bug">Bug</option>
+                            <option value="security">Security</option>
+                            <option value="performance">Performance</option>
+                            <option value="style">Style</option>
+                            <option value="documentation">Documentation</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Severity</label>
+                        <select id="c-severity">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea id="c-message" rows="2" placeholder="Describe the issue..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Suggestion (optional)</label>
+                    <input type="text" id="c-suggestion" placeholder="Proposed fix code...">
+                </div>
+
+                <button class="btn-outline" style="width: 100%; justify-content: center;" onclick="stageComment()">
+                    + Add to Review
+                </button>
+
+                <div class="comments-list" id="staged-comments">
+                    <!-- Dynamic comments go here -->
+                </div>
+
+                <div class="form-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--surface-border);">
+                    <label>Overall Summary (required for Hard tasks)</label>
+                    <textarea id="summary" placeholder="Provide an overall assessment of the code quality..."></textarea>
+                </div>
+
+                <div class="submit-section">
+                    <button class="btn-primary" onclick="submitReview()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        Submit Review
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Results Modal -->
+    <div id="result-modal">
+        <div class="glass-panel modal-content">
+            <h2 style="margin-top: 0;">Evaluation Complete</h2>
+            
+            <div class="score-circle" id="modal-score-circle">
+                <p class="score-value" id="modal-score">0.0</p>
+                <p class="score-label">Score</p>
+            </div>
+            
+            <h3 id="modal-status" style="margin-bottom: 5px;">Passed!</h3>
+            <p id="modal-desc" style="color: var(--text-secondary); margin-top: 0; font-size: 0.9rem;"></p>
+
+            <div class="reward-breakdown" id="modal-breakdown">
+                <!-- Breakdown inserted here -->
+            </div>
+
+            <button class="btn-primary" style="margin-top: 20px; width: 100%; justify-content: center;" onclick="closeModal()">
+                Continue
+            </button>
+        </div>
+    </div>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+    <script>
+        // State
+        let currentSessionId = 'session_' + Math.floor(Math.random() * 100000);
+        let stagedComments = [];
+        let maxSteps = 1;
+
+        // Init
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/tasks');
+                const tasks = await res.json();
+                const select = document.getElementById('task-select');
+                select.innerHTML = '';
+                
+                for (const [id, spec] of Object.entries(tasks)) {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `${spec.title} (${spec.difficulty})`;
+                    select.appendChild(option);
+                }
+                
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                document.getElementById('main-content').style.opacity = '1';
+                
+            } catch (e) {
+                alert("Failed to connect to backend api.");
+            }
+        });
+
+        function getLineNumberedSource(source) {
+            const lines = source.split('\n');
+            let result = '';
+            for (let i = 0; i < lines.length; i++) {
+                // simple line numbering injected into markup
+                result += `${lines[i]}\n`;
+            }
+            return result;
+        }
+
+        async function initSession() {
+            const taskId = document.getElementById('task-select').value;
+            if(!taskId) return;
+
+            document.getElementById('loader').style.display = 'flex';
+            document.getElementById('loader').style.opacity = '1';
+            
+            stagedComments = [];
+            renderComments();
+            document.getElementById('c-message').value = '';
+            document.getElementById('c-suggestion').value = '';
+            document.getElementById('c-line').value = '';
+            document.getElementById('summary').value = '';
+
+            try {
+                const res = await fetch('/reset', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({task_id: taskId, session_id: currentSessionId})
+                });
+                const data = await res.json();
+                const obs = data.observation;
+                
+                document.getElementById('instructions').textContent = obs.instructions;
+                document.getElementById('file-name').textContent = obs.snippet.file_name;
+                
+                let diffBadge = document.getElementById('task-difficulty');
+                diffBadge.className = 'badge';
+                if(taskId.includes('easy')) diffBadge.classList.add('easy');
+                else if(taskId.includes('medium')) diffBadge.classList.add('medium');
+                else diffBadge.classList.add('hard');
+                
+                diffBadge.textContent = diffBadge.classList[1].toUpperCase();
+
+                const codeBlock = document.getElementById('code-block');
+                codeBlock.textContent = obs.snippet.source;
+                Prism.highlightElement(codeBlock);
+
+                document.getElementById('review-panel').style.display = 'block';
+
+            } catch (e) {
+                alert("Error starting session.");
+            } finally {
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+            }
+        }
+
+        function stageComment() {
+            const line = document.getElementById('c-line').value;
+            const category = document.getElementById('c-category').value;
+            const severity = document.getElementById('c-severity').value;
+            const message = document.getElementById('c-message').value;
+            const suggestion = document.getElementById('c-suggestion').value;
+
+            if(!message) {
+                alert("Message is required.");
+                return;
+            }
+
+            const comment = {
+                category, severity, message
+            };
+            if(line) comment.line = parseInt(line);
+            if(suggestion) comment.suggestion = suggestion;
+
+            stagedComments.push(comment);
+            renderComments();
+            
+            // clear form
+            document.getElementById('c-message').value = '';
+            document.getElementById('c-suggestion').value = '';
+            document.getElementById('c-line').value = '';
+        }
+
+        function removeComment(index) {
+            stagedComments.splice(index, 1);
+            renderComments();
+        }
+
+        function renderComments() {
+            const list = document.getElementById('staged-comments');
+            list.innerHTML = '';
+            stagedComments.forEach((c, i) => {
+                const color = c.category === 'bug' ? 'var(--danger)' : c.category === 'security' ? '#ef4444' : 'var(--primary-accent)';
+                list.innerHTML += `
+                    <div class="comment-item" style="border-left-color: ${color}">
+                        <button class="remove-btn" onclick="removeComment(${i})">×</button>
+                        <div class="meta">
+                            <span style="color: ${color}; font-weight: bold;">[${c.category.toUpperCase()}] ${c.severity}</span>
+                            <span>Line: ${c.line || 'global'}</span>
+                        </div>
+                        <div style="margin-bottom: ${c.suggestion ? '5px' : '0'}">${c.message}</div>
+                        ${c.suggestion ? `<div style="font-family: monospace; font-size: 0.8rem; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px;">Fix: ${c.suggestion}</div>` : ''}
+                    </div>
+                `;
+            });
+        }
+
+        async function submitReview() {
+            const summary = document.getElementById('summary').value;
+            
+            const action = {
+                comments: stagedComments,
+                submit: true
+            };
+            if(summary) action.summary = summary;
+
+            document.getElementById('loader').style.display = 'flex';
+            document.getElementById('loader').style.opacity = '1';
+
+            try {
+                const res = await fetch('/step', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        session_id: currentSessionId,
+                        action: action
+                    })
+                });
+
+                const data = await res.json();
+                showResults(data);
+
+            } catch(e) {
+                alert("Failed to submit review.");
+            } finally {
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+            }
+        }
+
+        function showResults(data) {
+            const modal = document.getElementById('result-modal');
+            const scoreVal = document.getElementById('modal-score');
+            const circle = document.getElementById('modal-score-circle');
+            const status = document.getElementById('modal-status');
+            const desc = document.getElementById('modal-desc');
+            const breakdown = document.getElementById('modal-breakdown');
+
+            const score = data.info.grader?.score || 0;
+            const threshold = data.info.grader?.threshold || 0.5;
+            const passed = score >= threshold;
+
+            scoreVal.textContent = score.toFixed(2);
+            
+            if(passed) {
+                circle.classList.remove('failed');
+                status.textContent = "Great Review!";
+                status.style.color = "var(--success)";
+            } else {
+                circle.classList.add('failed');
+                status.textContent = "Needs Improvement";
+                status.style.color = "var(--danger)";
+            }
+            
+            desc.textContent = `Passing threshold was ${threshold.toFixed(2)}`;
+
+            let bkHTML = `<h4 style="margin-top:0; color:var(--text-secondary);">Reward Breakdown</h4>`;
+            if(data.reward.breakdown) {
+                for (const [key, val] of Object.entries(data.reward.breakdown)) {
+                    const color = val >= 0 ? 'var(--success)' : 'var(--danger)';
+                    bkHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span>${key}</span>
+                        <strong style="color:${color}">${val > 0 ? '+'+val.toFixed(2) : val.toFixed(2)}</strong>
+                    </div>`;
+                }
+            }
+            bkHTML += `<div style="border-top:1px solid #333; margin-top:10px; padding-top:10px;">
+                <strong>Reason: </strong> <span style="color:#bbb">${data.reward.reason}</span>
+            </div>`;
+
+            breakdown.innerHTML = bkHTML;
+
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('result-modal').style.display = 'none';
+        }
+
+    </script>
+</body>
+</html>
