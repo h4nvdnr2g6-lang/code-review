@@ -182,7 +182,7 @@ def get_model_action(client: OpenAI, obs_dict: dict) -> dict:
         raw = (completion.choices[0].message.content or "{}").strip()
         action_dict = json.loads(raw)
     except Exception as exc:
-        print(f"[DEBUG] Model request failed: {exc}", flush=True)
+        print(f"[DEBUG] Model request failed: {exc}", file=sys.stderr, flush=True)
         action_dict = {"comments": [], "submit": True}
 
     return action_dict
@@ -266,7 +266,7 @@ async def run_task(task_id: str, client: OpenAI) -> dict:
                 break
 
     except Exception as e:
-        print(f"[DEBUG] Error during task {task_id}: {e}", flush=True)
+        print(f"[DEBUG] Error during task {task_id}: {e}", file=sys.stderr, flush=True)
 
     finally:
         # Clamp score to [0, 1]
