@@ -1,3 +1,13 @@
+---
+title: CodeReview OpenEnv
+emoji: 🔍
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # 🔍 CodeReview OpenEnv
 
 An **OpenEnv-compliant AI training environment** that simulates professional Python code review. Agents learn to identify bugs, security vulnerabilities, performance bottlenecks, style issues, and documentation gaps — exactly as a senior engineer would in a real pull-request workflow.
