@@ -269,8 +269,8 @@ async def run_task(task_id: str, client: OpenAI) -> dict:
         print(f"[DEBUG] Error during task {task_id}: {e}", file=sys.stderr, flush=True)
 
     finally:
-        # Clamp score to [0, 1]
-        score = min(max(score, 0.0), 1.0)
+        # Clamp score to strictly (0, 1) to avoid 0.000 or 1.000 in .3f format
+        score = min(max(score, 0.001), 0.999)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
     return {"task_id": task_id, "score": score, "success": success}
