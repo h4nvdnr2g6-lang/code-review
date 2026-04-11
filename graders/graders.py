@@ -171,7 +171,7 @@ class Task1Grader(BaseGrader):
                     missed_critical_penalty += 0.15
 
         raw = recall - min(fp_penalty, 0.3) - missed_critical_penalty
-        final = round(max(0.0001, min(0.9999, raw)), 4)
+        final = round(max(0, min(1, raw)), 4)
 
         breakdown["recall"] = round(recall, 4)
         breakdown["fp_penalty"] = round(-min(fp_penalty, 0.3), 4)
@@ -225,7 +225,7 @@ class Task2Grader(BaseGrader):
                     missed_penalty += 0.10
 
         raw = recall - min(fp_penalty, 0.3) - missed_penalty
-        final = round(max(0.0001, min(0.9999, raw)), 4)
+        final = round(max(0, min(1, raw)), 4)
 
         return {
             "score": final,
@@ -286,7 +286,7 @@ class Task3Grader(BaseGrader):
                     missed_penalty += 0.08
 
         raw = recall + summary_bonus - min(fp_penalty, 0.3) - missed_penalty - summary_penalty
-        final = round(max(0.0001, min(0.9999, raw)), 4)
+        final = round(max(0, min(1, raw)), 4)
 
         return {
             "score": final,
