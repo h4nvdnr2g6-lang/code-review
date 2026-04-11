@@ -471,7 +471,7 @@
                 <span id="file-name">filename.py</span>
                 <span class="badge" id="task-difficulty">EASY</span>
             </div>
-            <div class="code-container">
+            <div class="code-container" id="code-container-inner">
                 <pre><code class="language-python" id="code-block"># Load a task to see code</code></pre>
             </div>
         </div>
@@ -494,45 +494,61 @@
                     Add Comment
                 </h2>
                 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Line # (optional)</label>
-                        <input type="number" id="c-line" placeholder="e.g. 15" min="1">
+                <div id="manual-review-forms">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Line # (optional)</label>
+                            <input type="number" id="c-line" placeholder="e.g. 15" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="c-category">
+                                <option value="bug">Bug</option>
+                                <option value="security">Security</option>
+                                <option value="performance">Performance</option>
+                                <option value="style">Style</option>
+                                <option value="documentation">Documentation</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Severity</label>
+                            <select id="c-severity">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
                     </div>
+
                     <div class="form-group">
-                        <label>Category</label>
-                        <select id="c-category">
-                            <option value="bug">Bug</option>
-                            <option value="security">Security</option>
-                            <option value="performance">Performance</option>
-                            <option value="style">Style</option>
-                            <option value="documentation">Documentation</option>
-                        </select>
+                        <label>Message</label>
+                        <textarea id="c-message" rows="2" placeholder="Describe the issue..."></textarea>
                     </div>
+                    
                     <div class="form-group">
-                        <label>Severity</label>
-                        <select id="c-severity">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
+                        <label>Suggestion (optional)</label>
+                        <input type="text" id="c-suggestion" placeholder="Proposed fix code...">
+                    </div>
+
+                    <button class="btn-outline" style="width: 100%; justify-content: center;" onclick="stageComment()">
+                        + Add to Review
+                    </button>
+                    
+                    <div class="form-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--surface-border);">
+                        <label>Overall Summary (required for Hard tasks)</label>
+                        <textarea id="summary" placeholder="Provide an overall assessment of the code quality..."></textarea>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Message</label>
-                    <textarea id="c-message" rows="2" placeholder="Describe the issue..."></textarea>
+                <div class="submit-section" style="border-top: none; padding-top: 0; margin-top: 10px;">
+                    <button class="btn-primary" id="auto-review-btn" onclick="autoReview()" style="display: none; width: 100%; justify-content: center; background: linear-gradient(135deg, #ec4899, #8b5cf6);">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        Run AI Auto-Review
+                    </button>
                 </div>
                 
-                <div class="form-group">
-                    <label>Suggestion (optional)</label>
-                    <input type="text" id="c-suggestion" placeholder="Proposed fix code...">
-                </div>
-
-                <button class="btn-outline" style="width: 100%; justify-content: center;" onclick="stageComment()">
-                    + Add to Review
-                </button>
+                <div id="summary-output" style="display:none; font-style:italic; border-bottom: 1px solid var(--surface-border); padding-bottom: 10px; margin-bottom: 10px; color: var(--text-secondary);"></div>
 
                 <div class="comments-list" id="staged-comments">
                     <!-- Dynamic comments go here -->
@@ -543,7 +559,7 @@
                     <textarea id="summary" placeholder="Provide an overall assessment of the code quality..."></textarea>
                 </div>
 
-                <div class="submit-section">
+                <div class="submit-section" id="submit-review-btn">
                     <button class="btn-primary" onclick="submitReview()">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                         Submit Review
@@ -595,6 +611,13 @@
                 const select = document.getElementById('task-select');
                 select.innerHTML = '';
                 
+                // Add the custom option first
+                const customOpt = document.createElement('option');
+                customOpt.value = 'custom';
+                customOpt.textContent = '✨ Auto-Review Custom Code';
+                customOpt.style.fontWeight = 'bold';
+                select.appendChild(customOpt);
+                
                 for (const [id, spec] of Object.entries(tasks)) {
                     const option = document.createElement('option');
                     option.value = id;
@@ -634,6 +657,35 @@
             document.getElementById('c-suggestion').value = '';
             document.getElementById('c-line').value = '';
             document.getElementById('summary').value = '';
+            document.getElementById('summary-output').style.display = 'none';
+
+            if (taskId === 'custom') {
+                document.getElementById('instructions').textContent = "Paste any Python code snippet into the editor on the left, then click 'Run AI Auto-Review' to see what the LLM finds! Note: Ensure you have your HF_TOKEN set.";
+                document.getElementById('file-name').textContent = "custom_code.py";
+                
+                let diffBadge = document.getElementById('task-difficulty');
+                diffBadge.className = 'badge medium'; 
+                diffBadge.textContent = "AI REVIEW";
+
+                const codeBox = document.getElementById('code-container-inner');
+                codeBox.innerHTML = '<textarea id="custom-code-input" placeholder="def your_code_here():\\n    pass" style="width:100%; height:100%; font-family: \'Fira Code\', monospace; font-size: 0.95rem; background:transparent; border:none; outline:none; padding:20px; color:var(--text-primary); resize:none;"></textarea>';
+                
+                document.getElementById('manual-review-forms').style.display = 'none';
+                document.getElementById('submit-review-btn').style.display = 'none';
+                document.getElementById('auto-review-btn').style.display = 'flex';
+                
+                document.getElementById('review-panel').style.display = 'block';
+
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                return;
+            }
+
+            // Restore normal mode
+            document.getElementById('code-container-inner').innerHTML = '<pre><code class="language-python" id="code-block"></code></pre>';
+            document.getElementById('manual-review-forms').style.display = 'block';
+            document.getElementById('submit-review-btn').style.display = 'flex';
+            document.getElementById('auto-review-btn').style.display = 'none';
 
             try {
                 const res = await fetch('/reset', {
@@ -663,6 +715,49 @@
 
             } catch (e) {
                 alert("Error starting session.");
+            } finally {
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+            }
+        }
+        
+        async function autoReview() {
+            const input = document.getElementById('custom-code-input');
+            const code = input ? input.value : "";
+            if (!code.trim()) {
+                alert("Please paste some code first!");
+                return;
+            }
+            
+            document.getElementById('loader').style.display = 'flex';
+            document.getElementById('loader').style.opacity = '1';
+            document.getElementById('summary-output').style.display = 'none';
+            
+            try {
+                const res = await fetch('/auto-review', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({source_code: code})
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Error: " + err.detail);
+                    return;
+                }
+                
+                const data = await res.json();
+                
+                stagedComments = data.comments || [];
+                renderComments();
+                
+                if(data.summary) {
+                    document.getElementById('summary-output').style.display = 'block';
+                    document.getElementById('summary-output').textContent = "AI Summary: " + data.summary;
+                }
+                
+            } catch(e) {
+                alert("Failed to hit the auto-review API endpoint.");
             } finally {
                 document.getElementById('loader').style.opacity = '0';
                 setTimeout(() => document.getElementById('loader').style.display = 'none', 500);

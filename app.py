@@ -43,6 +43,11 @@ class StepRequest(BaseModel):
     action: Dict[str, Any]
 
 
+class AutoReviewRequest(BaseModel):
+    source_code: str
+    file_name: str = "custom_file.py"
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -143,3 +148,33 @@ def get_state(session_id: str = Query(default="default")):
             detail=f"Session '{session_id}' not found. Call /reset first.",
         )
     return env.state().model_dump()
+
+
+@app.post("/auto-review")
+def auto_review(req: AutoReviewRequest):
+    """Run an automated AI review on custom user code."""
+    from openai import OpenAI
+    import inference
+    HF_TOKEN = os.getenv("HF_TOKEN")
+    if not HF_TOKEN:
+        raise HTTPException(
+            status_code=500, 
+            detail="HF_TOKEN not found in deployment environment. The AI needs a Hugging Face Token to perform auto-reviews."
+        )
+    
+    # We must lazily instantiate the client because HF_TOKEN might be loaded dynamically
+    client = OpenAI(base_url=inference.API_BASE_URL, api_key=HF_TOKEN)
+    
+    obs_dict = {
+        "snippet": {"file_name": req.file_name, "source": req.source_code},
+        "instructions": "Please perform a comprehensive code review on this user-submitted script. Focus on detecting severe bugs, security vulnerabilities, and performance flaws.",
+        "previous_comments": []
+    }
+    
+    # Re-use the LLM mapping directly from our strictly tested inference script
+    action_dict = inference.get_model_action(client, obs_dict)
+    
+    return {
+        "comments": action_dict.get("comments", []),
+        "summary": action_dict.get("summary", "")
+    }
