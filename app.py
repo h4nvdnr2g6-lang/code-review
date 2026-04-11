@@ -81,8 +81,9 @@ def list_tasks():
 
 
 @app.post("/reset")
-def reset(req: ResetRequest):
+def reset(req: Optional[ResetRequest] = None):
     """Start or restart an episode for the given task and session."""
+    req = req or ResetRequest()
     if req.task_id not in TASK_SPECS:
         raise HTTPException(
             status_code=400,
